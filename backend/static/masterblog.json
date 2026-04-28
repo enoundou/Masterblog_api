@@ -148,9 +148,8 @@
           {
             "name": "post",
             "in": "body",
-            "required": true,
             "schema": {
-              "$ref": "#/definitions/PostInput"
+              "$ref": "#/definitions/PostUpdateInput"
             }
           }
         ],
@@ -224,6 +223,7 @@
             "name": "date",
             "in": "query",
             "type": "string",
+            "format": "date",
             "required": false,
             "description": "Filter posts by date"
           },
@@ -255,7 +255,9 @@
       "type": "object",
       "required": [
         "title",
-        "content"
+        "content",
+        "author",
+        "date"
       ],
       "properties": {
         "title": {
@@ -272,8 +274,50 @@
         },
         "date": {
           "type": "string",
-          "format": "date-time",
-          "example": "2026-04-28T12:30:00"
+          "format": "date",
+          "example": "2026-04-28"
+        },
+        "category": {
+          "type": "string",
+          "example": "Programming"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "example": [
+            "python",
+            "flask"
+          ]
+        },
+        "comments": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "PostUpdateInput": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "example": "Flask API"
+        },
+        "content": {
+          "type": "string",
+          "example": "Build APIs with Flask"
+        },
+        "author": {
+          "type": "string",
+          "example": "Alice"
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "example": "2026-04-28"
         },
         "category": {
           "type": "string",

@@ -116,15 +116,7 @@ def pagination_posts(posts):
 
     return posts[start_index:end_index]
 
-
-@app.route('/api/posts', methods=['GET'])
-@limiter.limit("10/minute")  # Limit to 10 requests per m
-def get_posts():
-    """
-    get all posts
-    :return: jsonify of all posts
-    """
-    app.logger.info('GET request received for /api/posts')  # Log a message
+def sort_posts(posts_list):
 
     sort = request.args.get('sort') or None
     direction = request.args.get('direction', 'asc')
@@ -135,20 +127,40 @@ def get_posts():
         direction = direction.lower()
 
     if sort and sort not in ["title", "content", "author", "date"]:
-        return jsonify({"error": "Invalid sort", "version": "v1"}), 400
+        return None, "Invalid sort"
 
     if direction not in ["asc", "desc"]:
-        return jsonify({"error": "Invalid direction", "version": "v1"}), 400
+        return None, "Invalid direction"
 
     reverse = True if direction == "desc" else False
 
-    sorted_posts = POSTS.copy()
-
-    if sort in ["title", "content", "author", "date"]:
+    sorted_posts = posts_list.copy()
+    if sort == "date":
+        sorted_posts.sort(
+            key=lambda post: parse_date(post.get("date", "1970-01-01")),
+            reverse=reverse
+        )
+    elif sort in ["title", "content", "author"]:
         sorted_posts.sort(
             key=lambda post: post.get(sort, ""),
             reverse=reverse
         )
+
+    return sorted_posts, None
+
+
+@app.route('/api/posts', methods=['GET'])
+@limiter.limit("10/minute")  # Limit to 10 requests per m
+def get_posts():
+    """
+    get all posts
+    :return: jsonify of all posts
+    """
+    app.logger.info('GET request received for /api/posts')  # Log a message
+
+    sorted_posts, error = sort_posts(POSTS)
+    if error:
+        return jsonify({"error": error, "version": "v1"}), 400
 
     paginated_posts = pagination_posts(sorted_posts)
 
@@ -238,6 +250,13 @@ def update_post(post_id):
         return jsonify({"error": "Invalid post id", "version": "v1"}), 404
 
     new_data = request.get_json() or {}
+
+    if "date" in new_data:
+        date_obj = parse_date(new_data["date"])
+        if not date_obj:
+            return jsonify({"error": "Invalid date format. Use YYYY-MM-DD", "version": "v1"}), 400
+        new_data["date"] = date_obj.strftime("%Y-%m-%d")
+
     for field in ["title", "content", "author", "date", "category", "tags", "comments"]:
         if field in new_data:
             post[field] = new_data[field]
@@ -271,7 +290,11 @@ def search_posts():
            and (not date or  post.get("date", "")[:10] == date)
     ]
 
-    paginated_posts = pagination_posts(filter_posts)
+    sorted_posts, error = sort_posts(filter_posts)
+    if error:
+        return jsonify({"error": error, "version": "v1"}), 400
+
+    paginated_posts = pagination_posts(sorted_posts)
 
     return jsonify({"data": paginated_posts, "version": "v1"}), 200
 
