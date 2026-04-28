@@ -33,7 +33,9 @@
             "required": false,
             "enum": [
               "title",
-              "content"
+              "content",
+              "author",
+              "date"
             ]
           },
           {
@@ -212,6 +214,20 @@
             "description": "Filter posts by content (partial match)"
           },
           {
+            "name": "author",
+            "in": "query",
+            "type": "string",
+            "required": false,
+            "description": "Filter posts by author"
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "type": "string",
+            "required": false,
+            "description": "Filter posts by date"
+          },
+          {
             "name": "page",
             "in": "query",
             "type": "integer",
@@ -249,6 +265,15 @@
         "content": {
           "type": "string",
           "example": "Build APIs with Flask"
+        },
+        "author": {
+          "type": "string",
+          "example": "Alice"
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "example": "2026-04-28T12:30:00"
         },
         "category": {
           "type": "string",

@@ -1,4 +1,6 @@
 import logging
+import random
+from datetime import datetime, timedelta
 from itertools import count
 
 from flask import Flask, jsonify, request
@@ -27,23 +29,40 @@ swagger_ui_blueprint = get_swaggerui_blueprint(
     }
 )
 app.register_blueprint(swagger_ui_blueprint, url_prefix=SWAGGER_URL)
-
 POSTS = []
 categories = ["Programming", "Tech", "Tutorial", "Backend"]
 tags_pool = ["python", "flask", "api", "web", "backend", "coding"]
+authors = ["Alice", "Bob", "Charlie", "Diana"]
+
+comment_id = 1
+base_date = datetime.now()
 
 for i in range(1, 51):
+    # a random date in the past
+    post_date = base_date - timedelta(days=random.randint(0, 100))
+
+    comments = []
+    for j in range(2):
+        comments.append({
+            "id": comment_id,
+            "text": f"Comment {j + 1} on post {i}"
+        })
+        comment_id += 1
+
     post_example = {
         "id": i,
         "title": f"Post {i}",
         "content": f"This is the content of post {i}",
+        "author": random.choice(authors),
+        "date": post_date.isoformat(),
         "category": categories[i % len(categories)],
-        "tags": [tags_pool[i % len(tags_pool)], tags_pool[(i + 1) % len(tags_pool)]],
-        "comments": [
-            {"id": 1, "text": f"Comment 1 on post {i}"},
-            {"id": 2, "text": f"Comment 2 on post {i}"}
-        ]
+        "tags": [
+            tags_pool[i % len(tags_pool)],
+            tags_pool[(i + 1) % len(tags_pool)]
+        ],
+        "comments": comments
     }
+
     POSTS.append(post_example)
 
 post_id_counter = count(start=len(POSTS) + 1)
@@ -64,7 +83,8 @@ def validate_post_data(data):
     :param data:  dictionary
     :return: True if post data is valid, False otherwise
     """
-    if not data or "title" not in data or "content" not in data:
+    if not data or "title" not in data or "content" not in data \
+            or "author" not in data or "date" not in data:
         return False
     return True
 
@@ -107,7 +127,7 @@ def get_posts_v1():
     if direction:
         direction = direction.lower()
 
-    if sort and sort not in ["title", "content"]:
+    if sort and sort not in ["title", "content", "author", "date"]:
         return jsonify({"error": "Invalid sort", "version": "v1"}), 400
 
     if direction not in ["asc", "desc"]:
@@ -117,7 +137,7 @@ def get_posts_v1():
 
     sorted_posts = POSTS.copy()
 
-    if sort in ["title", "content"]:
+    if sort in ["title", "content", "author", "date"]:
         sorted_posts.sort(
             key=lambda post: post.get(sort, ""),
             reverse=reverse
@@ -162,6 +182,8 @@ def add_post():
         "id": next(post_id_counter),
         "title": new_post.get("title"),
         "content": new_post.get("content"),
+        "author": new_post.get("author"),
+        "date": new_post.get("date", datetime.now().isoformat()),
         "category": new_post.get("category", "General"),
         "tags": new_post.get("tags", []),
         "comments": new_post.get("comments", [])
@@ -203,7 +225,7 @@ def update_post(post_id):
         return jsonify({"error": "Invalid post id", "version": "v1"}), 404
 
     new_data = request.get_json() or {}
-    for field in ["title", "content", "category", "tags", "comments"]:
+    for field in ["title", "content", "author", "date", "category", "tags", "comments"]:
         if field in new_data:
             post[field] = new_data[field]
 
@@ -220,11 +242,15 @@ def search_posts():
 
     title = request.args.get('title') or None
     content = request.args.get('content') or None
+    author = request.args.get('author') or None
+    date = request.args.get('date') or None
 
     filter_posts = [
         post for post in POSTS
         if (not title or title.lower() in post.get("title", "").lower())
            and (not content or content.lower() in post.get("content", "").lower())
+           and (not author or author.lower() in post.get("author", "").lower())
+           and (not date or date.lower() in post.get("date", "").lower())
     ]
 
     paginated_posts = pagination_posts(filter_posts)
