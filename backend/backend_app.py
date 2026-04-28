@@ -54,7 +54,7 @@ for i in range(1, 51):
         "title": f"Post {i}",
         "content": f"This is the content of post {i}",
         "author": random.choice(authors),
-        "date": post_date.isoformat(),
+        "date": post_date.strftime("%Y-%m-%d"),
         "category": categories[i % len(categories)],
         "tags": [
             tags_pool[i % len(tags_pool)],
@@ -66,6 +66,13 @@ for i in range(1, 51):
     POSTS.append(post_example)
 
 post_id_counter = count(start=len(POSTS) + 1)
+
+
+def parse_date(date_str):
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError:
+        return None
 
 
 def find_post_by_id(post_id):
@@ -112,7 +119,7 @@ def pagination_posts(posts):
 
 @app.route('/api/posts', methods=['GET'])
 @limiter.limit("10/minute")  # Limit to 10 requests per m
-def get_posts_v1():
+def get_posts():
     """
     get all posts
     :return: jsonify of all posts
@@ -178,12 +185,18 @@ def add_post():
     if not validate_post_data(new_post):
         return jsonify({"error": "Invalid post data", "version": "v1"}), 400
 
+    date_str = new_post.get("date")
+    date_obj = parse_date(date_str)
+
+    if not date_obj:
+        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+
     post = {
         "id": next(post_id_counter),
         "title": new_post.get("title"),
         "content": new_post.get("content"),
         "author": new_post.get("author"),
-        "date": new_post.get("date", datetime.now().isoformat()),
+        "date": date_obj.strftime("%Y-%m-%d"),
         "category": new_post.get("category", "General"),
         "tags": new_post.get("tags", []),
         "comments": new_post.get("comments", [])
@@ -244,13 +257,18 @@ def search_posts():
     content = request.args.get('content') or None
     author = request.args.get('author') or None
     date = request.args.get('date') or None
+    if date:
+        date_obj = parse_date(date)
+        if not date_obj:
+            return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+        date = date_obj.strftime("%Y-%m-%d")
 
     filter_posts = [
         post for post in POSTS
         if (not title or title.lower() in post.get("title", "").lower())
            and (not content or content.lower() in post.get("content", "").lower())
            and (not author or author.lower() in post.get("author", "").lower())
-           and (not date or date.lower() in post.get("date", "").lower())
+           and (not date or  post.get("date", "")[:10] == date)
     ]
 
     paginated_posts = pagination_posts(filter_posts)
