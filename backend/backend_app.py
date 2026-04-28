@@ -5,6 +5,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_swagger_ui import get_swaggerui_blueprint
 
 app = Flask(__name__)
 CORS(app)  # This will enable CORS for all routes
@@ -14,6 +15,18 @@ limiter = Limiter(app=app, key_func=get_remote_address,
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+
+SWAGGER_URL = "/api/docs"  # (1) swagger endpoint e.g. HTTP://localhost:5002/api/docs
+API_URL = "/static/masterblog.json"  # (2) ensure you create this dir and file
+
+swagger_ui_blueprint = get_swaggerui_blueprint(
+    SWAGGER_URL,
+    API_URL,
+    config={
+        'app_name': 'Masterblog API'  # (3) You can change this if you like
+    }
+)
+app.register_blueprint(swagger_ui_blueprint, url_prefix=SWAGGER_URL)
 
 POSTS = []
 categories = ["Programming", "Tech", "Tutorial", "Backend"]
@@ -48,7 +61,7 @@ def find_post_by_id(post_id):
 def validate_post_data(data):
     """
     validate the post data
-    :param data: post data dictionary
+    :param data:  dictionary
     :return: True if post data is valid, False otherwise
     """
     if not data or "title" not in data or "content" not in data:
@@ -137,7 +150,7 @@ def get_post(post_id):
 def add_post():
     """
     add a post to the database
-    :return: jsonify of all posts including a new post
+    :return: jsonify of the new post
     """
     app.logger.info('POST request received for /api/posts')  # Log a message
 
@@ -190,12 +203,9 @@ def update_post(post_id):
         return jsonify({"error": "Invalid post id", "version": "v1"}), 404
 
     new_data = request.get_json() or {}
-    if "title" in new_data:
-        post["title"] = new_data["title"]
-    if "content" in new_data:
-        post["content"] = new_data["content"]
-    if "category" in new_data:
-        post["category"] = new_data["category"]
+    for field in ["title", "content", "category", "tags", "comments"]:
+        if field in new_data:
+            post[field] = new_data[field]
 
     return jsonify({"data": post, "version": "v1"}), 200
 
