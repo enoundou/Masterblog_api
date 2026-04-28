@@ -1,5 +1,6 @@
 import logging
 from itertools import count
+
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_limiter import Limiter
@@ -9,7 +10,7 @@ app = Flask(__name__)
 CORS(app)  # This will enable CORS for all routes
 
 limiter = Limiter(app=app, key_func=get_remote_address,
-    default_limits=["100 per hour"]) # configure limiter
+                  default_limits=["100 per hour"])  # configure limiter
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
@@ -24,7 +25,7 @@ for i in range(1, 51):
         "title": f"Post {i}",
         "content": f"This is the content of post {i}",
         "category": categories[i % len(categories)],
-        "tags": [tags_pool[i % len(tags_pool)], tags_pool[(i+1) % len(tags_pool)]],
+        "tags": [tags_pool[i % len(tags_pool)], tags_pool[(i + 1) % len(tags_pool)]],
         "comments": [
             {"id": 1, "text": f"Comment 1 on post {i}"},
             {"id": 2, "text": f"Comment 2 on post {i}"}
@@ -45,9 +46,15 @@ def find_post_by_id(post_id):
 
 
 def validate_post_data(data):
+    """
+    validate the post data
+    :param data: post data dictionary
+    :return: True if post data is valid, False otherwise
+    """
     if not data or "title" not in data or "content" not in data:
         return False
     return True
+
 
 def pagination_posts(posts):
     """
@@ -69,14 +76,15 @@ def pagination_posts(posts):
 
     return posts[start_index:end_index]
 
-@app.route('/api/v1/posts', methods=['GET'])
+
+@app.route('/api/posts', methods=['GET'])
 @limiter.limit("10/minute")  # Limit to 10 requests per m
 def get_posts_v1():
     """
     get all posts
     :return: jsonify of all posts
     """
-    app.logger.info('GET request received for /api/v1/posts')  # Log a message
+    app.logger.info('GET request received for /api/posts')  # Log a message
 
     sort = request.args.get('sort') or None
     direction = request.args.get('direction', 'asc')
@@ -107,14 +115,14 @@ def get_posts_v1():
     return jsonify({"data": paginated_posts, "version": "v1"}), 200
 
 
-@app.route('/api/v1/posts/<int:post_id>', methods=['GET'])
+@app.route('/api/posts/<int:post_id>', methods=['GET'])
 def get_post(post_id):
     """
     get a post with id = post_id from the database
     :param post_id: id of the post
     :return: jsonify of a post
     """
-    app.logger.info(f'GET request received for /api/v1/posts/{post_id}')  # Log a message
+    app.logger.info(f'GET request received for /api/posts/{post_id}')  # Log a message
 
     post = find_post_by_id(post_id)
 
@@ -122,16 +130,16 @@ def get_post(post_id):
     if post is None:
         return '', 404
 
-    return jsonify({"data":post, "version": "v1"}), 200
+    return jsonify({"data": post, "version": "v1"}), 200
 
 
-@app.route('/api/v1/posts', methods=['POST'])
+@app.route('/api/posts', methods=['POST'])
 def add_post():
     """
     add a post to the database
     :return: jsonify of all posts including a new post
     """
-    app.logger.info('POST request received for /api/v1/posts')  # Log a message
+    app.logger.info('POST request received for /api/posts')  # Log a message
 
     new_post = request.get_json()
     if not validate_post_data(new_post):
@@ -146,17 +154,17 @@ def add_post():
         "comments": new_post.get("comments", [])
     }
     POSTS.append(post)
-    return jsonify({"data":post, "version": "v1"}), 201
+    return jsonify({"data": post, "version": "v1"}), 201
 
 
-@app.route('/api/v1/posts/<int:post_id>', methods=['DELETE'])
+@app.route('/api/posts/<int:post_id>', methods=['DELETE'])
 def delete_post(post_id):
     """
     delete a post from the database
     :param post_id:
     :return: the deleted post
     """
-    app.logger.info(f'DELETE request received for /api/v1/posts/{post_id}')  # Log a message
+    app.logger.info(f'DELETE request received for /api/posts/{post_id}')  # Log a message
 
     post = find_post_by_id(post_id)
 
@@ -168,14 +176,14 @@ def delete_post(post_id):
     return jsonify({"message": f"Post with id {post_id} has been deleted successfully.", "version": "v1"}), 200
 
 
-@app.route('/api/v1/posts/<int:post_id>', methods=['PUT'])
+@app.route('/api/posts/<int:post_id>', methods=['PUT'])
 def update_post(post_id):
     """
     update a post from the database
     :param post_id: post id
     :return: post with updated data
     """
-    app.logger.info(f'PUT request received for /api/v1/posts/{post_id}')  # Log a message
+    app.logger.info(f'PUT request received for /api/posts/{post_id}')  # Log a message
 
     post = find_post_by_id(post_id)
     if post is None:
@@ -192,14 +200,14 @@ def update_post(post_id):
     return jsonify({"data": post, "version": "v1"}), 200
 
 
-@app.route('/api/v1/posts/search', methods=['GET'])
+@app.route('/api/posts/search', methods=['GET'])
 def search_posts():
     """
     search posts
     :return: jsonify of all matching posts
     """
-    app.logger.info(f'GET request received for /api/v1/posts/search')  # Log a message
-    
+    app.logger.info(f'GET request received for /api/posts/search')  # Log a message
+
     title = request.args.get('title') or None
     content = request.args.get('content') or None
 
@@ -211,7 +219,8 @@ def search_posts():
 
     paginated_posts = pagination_posts(filter_posts)
 
-    return jsonify({"data":paginated_posts, "version": "v1"}), 200
+    return jsonify({"data": paginated_posts, "version": "v1"}), 200
+
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=5002, debug=True)
